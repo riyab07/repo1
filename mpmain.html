@@ -5,64 +5,232 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Music Player</title>
   <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <style>
+    /* General Styles */
+    body {
+      font-family: 'Lato', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #121212;
+      color: #ffffff;
+      overflow: hidden;
+    }
+
+    .bg-image {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: -1;
+      opacity: 0.4;
+    }
+
+    .player-container {
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #ffffff;
+    }
+
+    .music-player {
+      background: #1e1e1e;
+      border-radius: 10px;
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 400px;
+    }
+
+    .controls button {
+      background-color: #3949ab;
+      color: white;
+      border: none;
+      border-radius: 50px;
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease-in-out;
+      box-shadow: 0 4px 8px rgba(57, 73, 171, 0.3);
+    }
+
+    .controls button:hover {
+      background-color: #303f9f;
+      transform: scale(1.1);
+      box-shadow: 0 6px 12px rgba(57, 73, 171, 0.5);
+    }
+
+    .progress-container {
+      margin: 20px 0;
+    }
+
+    #progress-bar {
+      width: 100%;
+      height: 5px;
+      background: #3949ab;
+      border-radius: 5px;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    #progress-bar::-webkit-slider-thumb {
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #ffffff;
+      cursor: pointer;
+    }
+
+    #file-input {
+      margin: 20px 0;
+    }
+
+    .playlist-btn {
+      background-color: #2e2e2e;
+      border: 1px solid #444;
+      padding: 8px 15px;
+      border-radius: 5px;
+      margin: 5px 0;
+      width: 100%;
+      text-align: left;
+      color: #ffffff;
+      cursor: pointer;
+    }
+
+    .playlist-btn:hover {
+      background-color: #3a3a3a;
+    }
+
+    .music-drop {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: radial-gradient(circle, #3949ab 0%, transparent 80%);
+      border-radius: 50%;
+      animation: drop 3s linear infinite;
+      opacity: 0.8;
+    }
+
+    @keyframes drop {
+      0% {
+        transform: translateY(-100px);
+        opacity: 0;
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh);
+        opacity: 0;
+      }
+    }
+  </style>
 </head>
 <body>
-  <!-- Background Image -->
   <img src="C:\Users\riya\Downloads\wallpaper white indie.jfif" alt="Background Image" class="bg-image">
 
-  <!-- Greeting Section -->
   <div class="player-container">
     <h1 id="greeting">Welcome to Your Personalized Music Player!</h1>
     <p>Select and enjoy your favorite tracks.</p>
 
-    <!-- Music Player Section -->
     <div class="music-player">
       <h2>Now Playing</h2>
-      <audio id="audio-player" controls>
-        Your browser does not support the audio element.
-      </audio>
+      <audio id="audio-player" controls></audio>
 
-      <!-- File input to select music from local PC -->
+      <!-- Progress Bar -->
+      <div class="progress-container">
+        <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1">
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <button id="play-btn">Play</button>
+        <button id="resume-btn">Resume</button>
+        <button id="stop-btn">Stop</button>
+        <button id="next-btn">Next</button>
+      </div>
+
       <input type="file" id="file-input" accept="audio/*" multiple>
       <div id="playlist"></div>
     </div>
   </div>
 
-  <script>
-    // Extract URL parameters for name
-    const urlParams = new URLSearchParams(window.location.search);
-    const username = urlParams.get('username');
-    if (username) {
-      document.getElementById('greeting').textContent = `Welcome, ${username}, to Your Personalized Music Player!`;
-    }
+  <div id="music-drops"></div>
 
-    // Handle file selection
-    const fileInput = document.getElementById('file-input');
+  <script>
     const audioPlayer = document.getElementById('audio-player');
+    const progressBar = document.getElementById('progress-bar');
+    const fileInput = document.getElementById('file-input');
     const playlist = document.getElementById('playlist');
+    const playBtn = document.getElementById('play-btn');
+    const resumeBtn = document.getElementById('resume-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const nextBtn = document.getElementById('next-btn');
+
+    let songIndex = 0;
+    let files = [];
 
     fileInput.addEventListener('change', handleFileSelect);
+    playBtn.addEventListener('click', playCurrentSong);
+    stopBtn.addEventListener('click', stopSong);
+    resumeBtn.addEventListener('click', resumeSong);
+    nextBtn.addEventListener('click', playNextSong);
+    audioPlayer.addEventListener('timeupdate', updateProgressBar);
+    progressBar.addEventListener('input', seekAudio);
 
     function handleFileSelect(event) {
-      const files = event.target.files;
-      playlist.innerHTML = ''; // Clear previous playlist
-      Array.from(files).forEach((file, index) => {
-        const songName = file.name;
+      files = Array.from(event.target.files);
+      playlist.innerHTML = '';
+      files.forEach((file, index) => {
         const songButton = document.createElement('button');
-        songButton.textContent = songName;
+        songButton.textContent = file.name;
         songButton.classList.add('playlist-btn');
-        
-        // Add event listener to play the selected song
-        songButton.addEventListener('click', () => playSong(file));
+        songButton.addEventListener('click', () => {
+          songIndex = index;
+          playSong(file);
+        });
         playlist.appendChild(songButton);
       });
     }
 
     function playSong(file) {
-      const objectURL = URL.createObjectURL(file);  // Create a URL for the selected file
-      audioPlayer.src = objectURL;  // Set the audio player source to the selected file
-      audioPlayer.play();  // Play the selected song
+      audioPlayer.src = URL.createObjectURL(file);
+      audioPlayer.play();
+    }
+
+    function playCurrentSong() {
+      if (files.length > 0) playSong(files[songIndex]);
+    }
+
+    function stopSong() {
+      audioPlayer.pause();
+      audioPlayer.currentTime = 0;
+    }
+
+    function resumeSong() {
+      audioPlayer.play();
+    }
+
+    function playNextSong() {
+      if (files.length > 0) {
+        songIndex = (songIndex + 1) % files.length;
+        playCurrentSong();
+      }
+    }
+
+    function updateProgressBar() {
+      if (audioPlayer.duration) {
+        progressBar.value = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+      }
+    }
+
+    function seekAudio(event) {
+      audioPlayer.currentTime = (event.target.value / 100) * audioPlayer.duration;
     }
   </script>
 </body>
